@@ -1,9 +1,16 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>My Vercel Project</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Upload</title>
 </head>
 <body>
-    <h1>Hello, Vercel!</h1>
+<h1>Upload an Image</h1>
+<form action="/upload" method="POST" enctype="multipart/form-data">
+  <label for="avatar">Choose an image:</label>
+  <input type="file" id="avatar" name="avatar" accept="image/*" required>
+  <button type="submit">Upload</button>
+</form>
 </body>
 </html>
