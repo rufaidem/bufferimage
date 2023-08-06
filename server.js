@@ -1,60 +1,50 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { createReadStream } = require('fs');
+const { parse } = require('querystring');
 const FormData = require('form-data');
-const fetch = require('node-fetch');
 
-const server = http.createServer(async (req, res) => {
-  if (req.url === '/upload' && req.method === 'POST') {
-    const form = new FormData();
-
-    form.parse(req, async (err, fields, files) => {
+const server = http.createServer((req, res) => {
+  if (req.method === 'GET' && req.url === '/') {
+    // Serve the HTML file
+    fs.readFile(path.join(__dirname, 'index.html'), (err, data) => {
       if (err) {
+        res.writeHead(500, { 'Content-Type': 'text/html' });
+        res.end('Internal Server Error');
+      } else {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(data);
+      }
+    });
+  } else if (req.method === 'POST' && req.url === '/upload') {
+    let body = '';
+
+    req.on('data', (chunk) => {
+      body += chunk.toString();
+    });
+
+    req.on('end', () => {
+      const formData = parse(body);
+      const imageFile = req.headers['x-file-name'];
+      
+      if (!imageFile) {
         res.writeHead(400, { 'Content-Type': 'text/plain' });
-        res.end('Error parsing form data');
+        res.end('Bad Request');
         return;
       }
 
-      const { avatar } = files;
-      if (!avatar || !avatar.name) {
-        res.writeHead(400, { 'Content-Type': 'text/plain' });
-        res.end('No image file uploaded');
-        return;
-      }
+      const imagePath = path.join(__dirname, imageFile);
+      const imageBuffer = Buffer.from(formData.avatar, 'base64');
 
-      const imageFileName = avatar.name;
-      const imagePath = path.resolve(__dirname, imageFileName);
-
-      // Save the image file as a variable (in-memory)
-      const imageBuffer = fs.readFileSync(avatar.path);
-
-      // Now you can use the imageBuffer variable as needed
-      // For example, you can send it using fetch to another server
-      try {
-        const response = await fetch('https://nftube.cam/upload/upload.php', {
-          method: 'POST',
-          body: imageBuffer,
-          headers: {
-            'Content-Type': avatar.type,
-          },
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          console.log('Upload successful:', result);
-          res.writeHead(200, { 'Content-Type': 'text/html' });
-          res.end('<h1>Image uploaded and processed successfully</h1>');
-        } else {
-          console.error('Upload failed:', response.statusText);
+      fs.writeFile(imagePath, imageBuffer, (err) => {
+        if (err) {
           res.writeHead(500, { 'Content-Type': 'text/plain' });
-          res.end('Error uploading image');
+          res.end('Internal Server Error');
+        } else {
+          res.writeHead(200, { 'Content-Type': 'text/plain' });
+          res.end('Image uploaded and saved');
         }
-      } catch (error) {
-        console.error('Error uploading image:', error);
-        res.writeHead(500, { 'Content-Type': 'text/plain' });
-        res.end('Error uploading image');
-      }
+      });
     });
   } else {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
